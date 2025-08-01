@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "89ec0ac198e6898a07f0fc3865071c3f"
-application_url = "https://marketplace-rid-bra-athletes.trycloudflare.com"
+application_url = "https://bundle-app-discount-outrageldn.vercel.app"
 embedded = true
 name = "Bundle App - Outrage"
 handle = "bundle-app-outrage-ldn"
@@ -26,12 +26,12 @@ api_version = "2025-01"
 scopes = "write_products,write_cart_transforms"
 
 [auth]
-redirect_urls = ["https://marketplace-rid-bra-athletes.trycloudflare.com/auth/callback", "https://marketplace-rid-bra-athletes.trycloudflare.com/auth/shopify/callback", "https://marketplace-rid-bra-athletes.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://bundle-app-discount-outrageldn.vercel.app/auth/callback", "https://bundle-app-discount-outrageldn.vercel.app/auth/shopify/callback", "https://bundle-app-discount-outrageldn.vercel.app/api/auth/callback"]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://marketplace-rid-bra-athletes.trycloudflare.com/storefront/bundles"
+url = "https://bundle-app-discount-outrageldn.vercel.app/storefront/bundles"
 subpath = "bundles"
 prefix = "apps"
