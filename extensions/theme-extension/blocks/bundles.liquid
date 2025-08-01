@@ -1,0 +1,416 @@
+<div id="bundle-app"></div>
+<script  src="https://unpkg.com/preact@10.5.13/dist/preact.min.js"></script>
+<script  src="https://unpkg.com/preact@10.5.13/hooks/dist/hooks.umd.js"></script>
+
+<style>
+  .bundle-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  
+  .bundle-header h2 {
+    font-size: 28px;
+    margin-bottom: 15px;
+  }
+  
+  .bundle-header p {
+    color: #666;
+    font-size: 16px;
+  }
+  
+  .bundle-products {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .product-item {
+    display: flex;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .product-image {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+  }
+  
+  .product-image img {
+    width: 100%;
+    height:  100%;
+    object-fit: contain;
+    object-position: center;
+    padding: 5px;
+  }
+  
+  .product-details {
+    flex-grow: 1;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  .product-details h3 {
+    margin-top: 0;
+    font-size: 18px;
+  }
+  
+
+  
+  .current-price {
+    font-size: 20px;
+    font-weight: bold;
+    margin-right: 10px;
+  }
+  
+  .original-price {
+    text-decoration: line-through;
+    color: #888;
+  }
+  
+  .product-quantity {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .quantity-label {
+    display: inline-block;
+    padding: 2.5px 10px;
+    background-color: #f4f4f4;
+    border-radius: 20px;
+    margin-left: 10px;
+  }
+  
+  .variant-select {
+    background-color: transparent;
+    border: none;
+    color: #4169e1;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .arrow-down {
+    margin-left: 5px;
+    font-size: 12px;
+  }
+  
+  .bundle-summary {
+    margin-top: 30px;
+  }
+  
+  .total-price {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+    flex-wrap: wrap;
+  }
+  
+  .total-label {
+    font-weight: bold;
+  }
+  
+  .current-total {
+    font-size: 28px;
+    font-weight: bold;
+    margin-right: 10px;
+  }
+  
+  .original-total {
+    text-decoration: line-through;
+    color: #999;
+    margin-right: 10px;
+  }
+
+  .savings {
+    color: #28a745;
+    font-weight: bold;
+    margin-left: 10px;
+  }  .add-bundle-btn {
+    background-color: #333;
+    color: white;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    width: 100%;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin: 10px 0;
+  }
+  
+  .add-bundle-btn:hover {
+    background-color: #444;
+  
+  }
+  .bundle-offer-label {
+    margin: 10px 0;
+    font-size: 15px;
+    font-weight: bold;
+  }
+  
+  .bundle-image {
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+</style>
+
+<script async>
+const { h, render, createContext } = preact;
+const { useState, useEffect } = preactHooks;
+
+
+function formatCurrency(amount, currency = 'GBP') {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  }).format(amount);
+}
+
+function ProductCard({ product, bundle }) {
+  const variant = product.variants && product.variants.length > 0 ? product.variants[0] : null;
+  if (!variant) return null;
+
+  const currencyCode = (window.Shopify && window.Shopify.currency && window.Shopify.currency.active) 
+    ? window.Shopify.currency.active 
+    : 'GBP'; // Fallback
+
+  const originalPrice = parseFloat(variant.originalPrice);
+  const discountedPrice = variant.discountedPrice 
+    ? parseFloat(variant.discountedPrice) 
+    : originalPrice - (originalPrice * (product.offer / 100));
+
+  return h("div", { className: "product-item" },
+    h("div", { className: "product-image" },
+      h("img", { src: product.featuredImage, alt: product.title })
+    ),
+    h("div", { className: "product-details" },
+      h("h3", null, product.title),
+      h("div", { className: "product-price" },
+        bundle.showComparisonPrice &&
+          h("span", { className: "original-price" }, formatCurrency(originalPrice, currencyCode)),
+        h("span", { className: bundle.showComparisonPrice ? "current-price" : "original-price" },
+          formatCurrency(discountedPrice, currencyCode)
+        ),
+        h("span", { className: "quantity-label" }, `x${product.quantity}`)
+      )
+    )
+  );
+}
+
+function BundlePrice({ bundle, bundleIndex }) {
+  const currencyCode = (window.Shopify && window.Shopify.currency && window.Shopify.currency.active) 
+    ? window.Shopify.currency.active 
+    : 'GBP'; // Fallback
+
+  // Calculate totals
+  let originalTotal = 0;
+  let discountedTotal = 0;
+
+  bundle.selectedProducts.forEach(product => {
+    const firstVariant = product.variants && product.variants.length > 0 ? product.variants[0] : null;
+    if (firstVariant) {
+      const originalPrice = parseFloat(firstVariant.originalPrice);
+      const discountedPrice = firstVariant.discountedPrice 
+        ? parseFloat(firstVariant.discountedPrice) 
+        : originalPrice - (originalPrice * (product.offer / 100));
+      
+      originalTotal += originalPrice * product.quantity;
+      discountedTotal += discountedPrice * product.quantity;
+    }
+  });
+
+  const totalSavings = originalTotal - discountedTotal;
+
+  return h('div', { className: 'bundle-price-container' },
+    h('div', { className: 'bundle-price-inner' },
+      // bundle.bundleImage && h('img', { 
+      //   src: bundle.bundleImage, 
+      //   alt: bundle.displayText || 'Bundle image',
+      //   className: 'bundle-image'
+      // }),
+      h('h5', { className: 'bundle-offer-label' }, `${bundle.displayText}`),
+      h('div', { className: 'bundle-summary' },
+        bundle.showComparisonPrice && h('div', { className: 'total-price' },
+          h('span', { className: 'total-label' }, 'Bundle Total:'),
+          h('span', { className: 'original-total' }, formatCurrency(originalTotal, currencyCode)),
+          h('span', { className: 'current-total' }, formatCurrency(discountedTotal, currencyCode)),
+          h('span', { className: 'savings' }, `Save ${formatCurrency(totalSavings, currencyCode)}`)
+        ),
+        !bundle.showComparisonPrice && h('div', { className: 'total-price' },
+          h('span', { className: 'total-label' }, 'Bundle Total:'),
+          h('span', { className: 'current-total' }, formatCurrency(discountedTotal, currencyCode))
+        )
+      )
+    )
+  );
+}
+
+function BundleCard({ bundle, bundleIndex }) {
+  const [loading, setLoading] = useState(false);
+
+  const addToCart = () => {
+    setLoading(true);
+    const input = document.createElement("input");
+    input.name = "properties[_bundleIndex]";
+    input.type = "hidden";
+    input.value = bundleIndex
+
+    const bundleTitleInput = document.createElement("input");
+    bundleTitleInput.name = "properties[Bundle Title]";
+    bundleTitleInput.type = "hidden";
+    bundleTitleInput.value = bundle.displayText;
+
+    // Add original pricing information as properties
+    const originalPriceInput = document.createElement("input");
+    originalPriceInput.name = "properties[Original Price]";
+    originalPriceInput.type = "hidden";
+    
+    // Calculate total original price and discounted price
+    let originalTotal = 0;
+    let discountedTotal = 0;
+    bundle.selectedProducts.forEach(product => {
+      const firstVariant = product.variants && product.variants.length > 0 ? product.variants[0] : null;
+      if (firstVariant) {
+        const originalPrice = parseFloat(firstVariant.originalPrice);
+        const discountedPrice = firstVariant.discountedPrice 
+          ? parseFloat(firstVariant.discountedPrice) 
+          : originalPrice - (originalPrice * (product.offer / 100));
+        
+        originalTotal += originalPrice * product.quantity;
+        discountedTotal += discountedPrice * product.quantity;
+      }
+    });
+    
+    const currencyCode = (window.Shopify && window.Shopify.currency && window.Shopify.currency.active) 
+      ? window.Shopify.currency.active 
+      : 'GBP';
+    
+    originalPriceInput.value = formatCurrency(originalTotal, currencyCode);
+
+    const discountedPriceInput = document.createElement("input");
+    discountedPriceInput.name = "properties[Discounted Price]";
+    discountedPriceInput.type = "hidden";
+    discountedPriceInput.value = formatCurrency(discountedTotal, currencyCode);
+
+    const discountInput = document.createElement("input");
+    discountInput.name = "properties[Bundle Discount]";
+    discountInput.type = "hidden";
+    discountInput.value = `${bundle.offer || 10}% off`;
+
+    const productForm = document.querySelector("form[action='/cart/add']"); // Better approach: Use Cart API
+    if (productForm) {
+      productForm.appendChild(input);
+      productForm.appendChild(bundleTitleInput); // Add the bundle title input to the form
+      productForm.appendChild(originalPriceInput); // Add original price info
+      productForm.appendChild(discountedPriceInput); // Add discounted price info
+      productForm.appendChild(discountInput); // Add discount info
+      productForm.submit(); 
+      if(bundle.directToCheckout) {
+      // TODO: directly switch to the checkout page
+      }
+     
+    } else {
+      console.error("Form not found.");
+      setLoading(false); 
+    }
+  };
+
+  return h(
+    "div",
+    { className: "bundle-card" },
+    h(BundlePrice, { bundle, bundleIndex }),
+    h(
+      "div",
+      { className: "bundle-products" },
+     bundle.selectedProducts.map((product) => {
+        // Only pass the first variant
+        const firstVariant = product.variants && product.variants.length > 0 ? product.variants[0] : null;
+        if (!firstVariant) return null;
+        return h(ProductCard, {
+          key: product.id,
+          product: { ...product, variants: [firstVariant] }, // Overwrite variants with just the first
+          bundle
+        });
+      })
+    ),
+    h(
+      "button",
+      {
+        className: "add-bundle-btn",
+        onClick: addToCart,
+        disabled: loading, // Disable button while loading
+      },
+      loading ? "Loading..." : "Select this bundle"
+    )
+  );
+}
+
+function App() {
+  const [bundles, setBundles] = useState([]);
+  const [loadingBundles, setLoadingBundles] = useState(true);
+  const [errorBundles, setErrorBundles] = useState(null);
+
+  useEffect(() => {
+    fetch("/apps/bundles")
+      .then((response) => response.json())
+      .then((data) => {
+        setBundles(data.bundles);
+        setLoadingBundles(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching bundles:", error);
+        setErrorBundles("Failed to load bundles.");
+        setLoadingBundles(false);
+      });
+  }, []);
+
+  if (loadingBundles) {
+    return h("div", null, "Loading bundles...");
+  }
+
+  if (errorBundles) {
+    return h("div", null, errorBundles);
+  }
+
+  return h(
+    "div",
+    { className: "bundle-container" },
+    bundles.length
+      ? bundles.map((bundle, index) => h(BundleCard, { key: bundle.displayText, bundle, bundleIndex:index }))
+      : null
+  );
+}
+
+render(h(App), document.getElementById('bundle-app'));
+</script>
+
+{% schema %}
+{
+  "name": "Product Bundles",
+  "target": "section",
+  "tag": "section",
+  "class": "bundle-section",
+  "settings": [
+    {
+      "type": "product",
+      "id": "product",
+      "label": "Product",
+      "autofill": true
+    }
+  ]
+}
+{% endschema %}
